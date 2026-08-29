@@ -9,6 +9,13 @@ const search = document.querySelector("#search");
 const company = document.querySelector("#company");
 const sourceStatus = document.querySelector("#source-status");
 const personalStatus = document.querySelector("#personal-status");
+const menuToggle = document.querySelector("#menu-toggle");
+const menuPanel = document.querySelector("#menu-panel");
+const refreshCsv = document.querySelector("#refresh-csv");
+const viewDiscards = document.querySelector("#view-discards");
+const discardModal = document.querySelector("#discard-modal");
+const discardList = document.querySelector("#discard-list");
+const closeDiscards = document.querySelector("#close-discards");
 
 let debounce;
 let selectedId = null;
@@ -283,6 +290,11 @@ function showDetail(job) {
       headers: {"Content-Type": "application/json"},
       body: JSON.stringify({personal_status: select.value, notes: notes.value}),
     });
+    if (select.value === "na") {
+      clearDetail();
+      await load();
+      return;
+    }
     showDetail(updatedJob);
     await load();
   };
@@ -304,6 +316,48 @@ function renderSourceHealth(sources, errors) {
   sourceHealthNode.innerHTML = items.join("");
 }
 
+function toggleMenu(forceOpen) {
+  const open = forceOpen ?? menuPanel.hidden;
+  menuPanel.hidden = !open;
+  menuToggle.setAttribute("aria-expanded", String(open));
+}
+
+function renderDiscards(jobs) {
+  if (!jobs.length) {
+    discardList.innerHTML = '<p class="meta">No jobs have been marked NA yet.</p>';
+    return;
+  }
+  discardList.replaceChildren(...jobs.map((job) => {
+    const item = document.createElement("article");
+    item.className = "discard-item";
+    const lab = document.createElement("p");
+    lab.className = "lab";
+    lab.textContent = job.laboratory;
+    const title = document.createElement("h3");
+    title.textContent = job.title;
+    const meta = document.createElement("p");
+    meta.className = "meta";
+    meta.textContent = [
+      job.location,
+      job.discarded_utc && `Discarded ${new Date(job.discarded_utc).toLocaleDateString()}`,
+    ].filter(Boolean).join(" - ");
+    const link = document.createElement("a");
+    link.href = job.url;
+    link.target = "_blank";
+    link.rel = "noreferrer";
+    link.textContent = "Open posting";
+    item.append(lab, title, meta, link);
+    return item;
+  }));
+}
+
+async function openDiscardPile() {
+  toggleMenu(false);
+  const data = await request("/api/discards");
+  renderDiscards(data.jobs);
+  discardModal.hidden = false;
+}
+
 async function summary() {
   const data = await request("/api/summary");
   const okSources = (data.source_health || []).filter((source) => source.status === "ok").length;
@@ -314,6 +368,7 @@ async function summary() {
     ["Sources OK", totalSources ? `${okSources}/${totalSources}` : "0"],
     ["Applied", data.personal.applied || 0],
     ["In progress", data.personal.in_progress || 0],
+    ["Discarded", data.discarded || 0],
   ].map(([name, count]) => `<div class="metric"><span>${name}</span><strong>${count}</strong></div>`).join("");
 
   const oldCompany = company.value;
@@ -341,10 +396,12 @@ async function load() {
 }
 
 [search, company, sourceStatus, personalStatus].forEach((element) => {
-  element.oninput = () => {
+  const queueLoad = () => {
     clearTimeout(debounce);
     debounce = setTimeout(load, 180);
   };
+  element.addEventListener("input", queueLoad);
+  element.addEventListener("change", queueLoad);
 });
 
 jobsNode.onclick = (event) => {
@@ -353,9 +410,28 @@ jobsNode.onclick = (event) => {
   }
 };
 
-document.querySelector("#sync-button").onclick = async () => {
+menuToggle.onclick = () => toggleMenu();
+
+document.addEventListener("click", (event) => {
+  if (!event.target.closest(".app-menu")) {
+    toggleMenu(false);
+  }
+});
+
+refreshCsv.onclick = async () => {
+  toggleMenu(false);
   await request("/api/sync");
   load();
 };
+
+viewDiscards.onclick = openDiscardPile;
+closeDiscards.onclick = () => {
+  discardModal.hidden = true;
+};
+discardModal.addEventListener("click", (event) => {
+  if (event.target === discardModal) {
+    discardModal.hidden = true;
+  }
+});
 
 load();

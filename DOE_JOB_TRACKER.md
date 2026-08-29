@@ -10,6 +10,9 @@ Implemented sources:
 
 - ORNL: server-rendered career search.
 - ANL, BNL, NREL: Workday CXS JSON APIs behind JavaScript-heavy portals.
+- LANL: public job search pages with keyword filtering.
+- LBNL: Berkeley Lab public job pages and featured NERSC/technology listings.
+- Sandia: public PeopleSoft careers search.
 - PNNL: Jibe JSON jobs API behind its careers portal.
 - LLNL: public LLNL career search with SmartRecruiters apply links.
 

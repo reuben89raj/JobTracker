@@ -18,6 +18,8 @@ Open `http://127.0.0.1:8765` in your browser.
 - Scrapes DOE lab job boards and writes `doe_jobs_latest.csv`.
 - Filters for computing-relevant jobs and excludes clearance/classified roles.
 - Saves your personal status and notes in local dashboard storage.
+- Lets you mark jobs as `NA`, moving them to `discarded_jobs.csv` so future
+  scraper runs do not bring them back.
 
 ## Repo Notes
 

@@ -73,6 +73,28 @@ WORKDAY_SOURCES = (
         "site": "NLR",
     },
 )
+LANL_SOURCE = {
+    "laboratory": "LANL",
+    "platform": "lanl_searchjobs",
+    "search_url": "https://lanl.jobs/search/searchjobs?keyword={query}",
+}
+LBNL_SOURCES = (
+    {
+        "laboratory": "LBNL",
+        "platform": "berkeley_lab_jobs",
+        "search_url": "https://jobs.lbl.gov/page/technology-22",
+    },
+    {
+        "laboratory": "LBNL",
+        "platform": "berkeley_lab_jobs",
+        "search_url": "https://jobs.lbl.gov/",
+    },
+)
+SANDIA_SOURCE = {
+    "laboratory": "Sandia",
+    "platform": "peoplesoft_search",
+    "search_url": "https://cg.sandia.gov/psc/applicant/EMPLOYEE/HRMS/c/HRS_HRAM_FL.HRS_CG_SEARCH_FL.GBL?PAGE=HRS_APP_SCHJOB_FL&keyword={query}",
+}
 HTML_SOURCES = (
     {
         "laboratory": "LLNL",
@@ -150,6 +172,34 @@ class PageParser(HTMLParser):
             self._skip_depth -= 1
 
 
+class LinkCollector(HTMLParser):
+    """Collect anchor href/text pairs from search-result-like pages."""
+
+    def __init__(self):
+        super().__init__()
+        self.links = []
+        self._href = None
+        self._text = []
+
+    def handle_starttag(self, tag, attrs):
+        if tag == "a":
+            self._href = dict(attrs).get("href")
+            self._text = []
+
+    def handle_data(self, data):
+        if self._href is not None:
+            self._text.append(data)
+
+    def handle_endtag(self, tag):
+        if tag == "a" and self._href:
+            text = clean_text("".join(self._text))
+            if text:
+                self.links.append((self._href, text))
+        if tag == "a":
+            self._href = None
+            self._text = []
+
+
 def fetch(url, timeout):
     request = Request(url, headers={"User-Agent": USER_AGENT, "Accept": "text/html,application/json"})
     with urlopen(request, timeout=timeout) as response:
@@ -223,6 +273,83 @@ def parse_ornl(queries, timeout):
             url = urljoin(search_url, relative_url)
             found[url] = title
     return [("ORNL", title, url) for url, title in found.items()]
+
+
+def parse_lanl(queries, timeout):
+    found = {}
+    for query in queries:
+        search_url = LANL_SOURCE["search_url"].format(query=quote(query))
+        page = fetch(search_url, timeout)
+        collector = LinkCollector()
+        collector.feed(page)
+        for href, text in collector.links:
+            if "/search/jobdetails/" not in href and "JobOpeningId=" not in href:
+                continue
+            if not any(term in text.lower() for term in PROFILE_TERMS + ROLE_TERMS + ENGINEER_TERMS):
+                continue
+            url = urljoin(search_url, href)
+            found[url] = {
+                "laboratory": "LANL",
+                "title": text,
+                "url": url,
+                "location": "Los Alamos, NM",
+                "posted_date": "",
+                "closing_date": "",
+                "description": text,
+            }
+    return list(found.values())
+
+
+def parse_lbnl(queries, timeout):
+    found = {}
+    pages = [source["search_url"] for source in LBNL_SOURCES]
+    for page_url in pages:
+        page = fetch(page_url, timeout)
+        collector = LinkCollector()
+        collector.feed(page)
+        for href, text in collector.links:
+            if not href.startswith("/jobs/") and "/jobs/" not in href:
+                continue
+            if "search all jobs" in text.lower():
+                continue
+            if not any(term in text.lower() for term in PROFILE_TERMS + ROLE_TERMS + ENGINEER_TERMS):
+                continue
+            url = urljoin(page_url, href)
+            found[url] = {
+                "laboratory": "LBNL",
+                "title": text,
+                "url": url,
+                "location": "Bay Area, California, United States",
+                "posted_date": "",
+                "closing_date": "",
+                "description": text,
+            }
+    return list(found.values())
+
+
+def parse_sandia(queries, timeout, max_pages=3):
+    found = {}
+    for query in queries:
+        search_url = SANDIA_SOURCE["search_url"].format(query=quote(query))
+        page = fetch(search_url, timeout)
+        collector = LinkCollector()
+        collector.feed(page)
+        for href, text in collector.links:
+            if "JobOpeningId=" not in href and "/search/jobdetails/" not in href:
+                continue
+            if not any(term in text.lower() for term in PROFILE_TERMS + ROLE_TERMS + ENGINEER_TERMS):
+                continue
+            url = urljoin(search_url, href)
+            found[url] = {
+                "laboratory": "Sandia",
+                "title": text,
+                "url": url,
+                "location": "Albuquerque, NM",
+                "posted_date": "",
+                "closing_date": "",
+                "description": text,
+            }
+    return list(found.values())
 
 
 def parse_workday(source, queries, timeout, page_size=20, max_pages=8):
@@ -433,6 +560,13 @@ def write_csv(records, output_dir):
     return output_dir / "doe_jobs_latest.csv"
 
 
+def load_discarded_ids(path):
+    if not path.exists():
+        return set()
+    with path.open(newline="") as source:
+        return {row["record_id"] for row in csv.DictReader(source) if row.get("record_id")}
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output-dir", type=Path, default=Path("job_tracker/output"))
@@ -440,6 +574,7 @@ def main():
     parser.add_argument("--max-postings", type=int, default=150)
     parser.add_argument("--max-postings-per-source", type=int, default=50)
     parser.add_argument("--include-usajobs", action="store_true")
+    parser.add_argument("--discard-file", type=Path)
     parser.add_argument("--queries", nargs="+", default=DEFAULT_QUERIES)
     args = parser.parse_args()
 
@@ -501,6 +636,27 @@ def main():
         )
 
     collect_source(
+        "LANL",
+        LANL_SOURCE["platform"],
+        lambda: parse_lanl(args.queries, args.timeout),
+        lambda item: item,
+    )
+
+    collect_source(
+        "LBNL",
+        "berkeley_lab_jobs",
+        lambda: parse_lbnl(args.queries, args.timeout),
+        lambda item: item,
+    )
+
+    collect_source(
+        "Sandia",
+        SANDIA_SOURCE["platform"],
+        lambda: parse_sandia(args.queries, args.timeout),
+        lambda item: item,
+    )
+
+    collect_source(
         "LLNL",
         "smartrecruiters_html",
         lambda: parse_llnl(args.queries, args.timeout),
@@ -557,6 +713,13 @@ def main():
         {record["url"]: record for record in records}.values(),
         key=lambda row: (-row["profile_match_score"], row["laboratory"], row["title"]),
     )[:args.max_postings]
+    discard_file = args.discard_file or args.output_dir / "discarded_jobs.csv"
+    skipped_discarded = 0
+    if discard_file.exists():
+        discarded = load_discarded_ids(discard_file)
+        before_discard_filter = len(records)
+        records = [record for record in records if record["record_id"] not in discarded]
+        skipped_discarded = before_discard_filter - len(records)
     latest = write_csv(records, args.output_dir)
     write_csv(excluded_records, args.output_dir / "excluded")
     status = {
@@ -568,6 +731,7 @@ def main():
             for row in excluded_records
         ),
         "excluded_records": len(excluded_records),
+        "discarded_by_user": skipped_discarded,
         "sources": source_health,
         "errors": errors,
     }

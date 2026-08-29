@@ -4,7 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>DOE Opportunity Tracker</title>
-  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/foundation.min.css?v=1">
+  <link rel="stylesheet" href="/styles.css?v=foundation-clean-1">
 </head>
 <body>
   <main class="shell">
@@ -14,7 +15,18 @@
         <h1>Opportunity tracker</h1>
         <p>Computing-focused research roles, with your application pipeline in one place.</p>
       </div>
-      <button id="sync-button" class="button secondary">Refresh CSV</button>
+      <div class="app-menu">
+        <button id="menu-toggle" class="icon-button" type="button" aria-expanded="false" aria-label="Open menu">
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+        <div id="menu-panel" class="menu-panel" hidden>
+          <button id="refresh-csv" type="button">Refresh CSV</button>
+          <a id="download-csv" href="/api/download-csv">Download CSV</a>
+          <button id="view-discards" type="button">View discard pile</button>
+        </div>
+      </div>
     </header>
 
     <section id="summary" class="summary"></section>
@@ -78,6 +90,7 @@
             <option value="applied">Applied</option>
             <option value="in_progress">In progress</option>
             <option value="not_proceeding">Not proceeding</option>
+            <option value="na">NA</option>
           </select>
           <button class="save-button button">Save</button>
         </div>
@@ -91,6 +104,15 @@
       </details>
     </article>
   </template>
+
+  <section id="discard-modal" class="modal-backdrop" hidden>
+    <article class="discard-panel">
+      <button id="close-discards" class="close-detail" type="button">x</button>
+      <p class="eyebrow">DISCARD PILE</p>
+      <h2>Jobs marked NA</h2>
+      <div id="discard-list" class="discard-list"></div>
+    </article>
+  </section>
 
   <script src="/app.js"></script>
 </body>
