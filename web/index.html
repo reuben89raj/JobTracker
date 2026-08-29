@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DOE Opportunity Tracker</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <main class="shell">
+    <header class="hero">
+      <div>
+        <p class="eyebrow">REUBEN SAMSON RAJ - DOE LAB CAREERS</p>
+        <h1>Opportunity tracker</h1>
+        <p>Computing-focused research roles, with your application pipeline in one place.</p>
+      </div>
+      <button id="sync-button" class="button secondary">Refresh CSV</button>
+    </header>
+
+    <section id="summary" class="summary"></section>
+    <section id="source-health" class="source-health"></section>
+
+    <section class="filters">
+      <input id="search" type="search" placeholder="Search title, lab, location, or keywords">
+      <select id="company"><option value="all">All companies</option></select>
+      <select id="source-status">
+        <option value="open">Open postings</option>
+        <option value="closed">Closed postings</option>
+        <option value="all">All source statuses</option>
+      </select>
+      <select id="personal-status">
+        <option value="all">All personal statuses</option>
+        <option value="untracked">Untracked</option>
+        <option value="applied">Applied</option>
+        <option value="in_progress">In progress</option>
+        <option value="not_proceeding">Not proceeding</option>
+      </select>
+    </section>
+
+    <p id="result-count" class="result-count"></p>
+
+    <section class="workspace">
+      <section id="jobs" class="jobs"></section>
+      <aside id="detail-pane" class="detail-pane">
+        <div class="empty-detail">
+          <span>&lt;-</span>
+          <p>Select a posting to view details.</p>
+        </div>
+      </aside>
+    </section>
+  </main>
+
+  <template id="listing-template">
+    <button class="job-listing" type="button">
+      <div>
+        <p class="lab"></p>
+        <h2></h2>
+        <p class="meta"></p>
+      </div>
+      <span class="source-badge"></span>
+    </button>
+  </template>
+
+  <template id="detail-template">
+    <article class="job-detail">
+      <button class="close-detail" type="button">x</button>
+      <div class="detail-heading">
+        <p class="lab"></p>
+        <h2></h2>
+        <p class="meta"></p>
+        <span class="source-badge"></span>
+      </div>
+      <div class="detail-actions">
+        <a class="apply-link" target="_blank" rel="noreferrer">Open official posting -&gt;</a>
+        <div class="status-controls">
+          <select class="personal-select">
+            <option value="untracked">Untracked</option>
+            <option value="applied">Applied</option>
+            <option value="in_progress">In progress</option>
+            <option value="not_proceeding">Not proceeding</option>
+          </select>
+          <button class="save-button button">Save</button>
+        </div>
+      </div>
+      <textarea class="notes" rows="3" placeholder="Private notes: recruiter, deadline, follow-up..."></textarea>
+      <p class="evidence"></p>
+      <section class="job-sections"></section>
+      <details class="full-description">
+        <summary>Full cleaned description</summary>
+        <div class="description"></div>
+      </details>
+    </article>
+  </template>
+
+  <script src="/app.js"></script>
+</body>
+</html>

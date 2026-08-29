@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.py[cod]
+
+# Local data and app state
+job_tracker/dashboard.sqlite3
+job_tracker/dashboard.sqlite3-shm
+job_tracker/dashboard.sqlite3-wal
+job_tracker/logs/
+job_tracker/output/
+
+# Editor and OS files
+.DS_Store
+.vscode/
+.idea/
+
+# Local documents and exports
+*.pdf
